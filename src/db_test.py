@@ -12,7 +12,7 @@ def callback_odom(msg):
     orix = str(round(msg.pose.pose.orientation.x, 12))
     oriy = str(round(msg.pose.pose.orientation.y, 12))
     oriz = str(round(msg.pose.pose.orientation.z, 12))
-    oriw = str(round(msg.pose.pose.orientation.z, 12))
+    oriw = str(round(msg.pose.pose.orientation.w, 12))
     msg = "{\"localisation.position.x\":" + posx + ",\"localisation.position.y\":" + posy + ",\"localisation.position.z\":" + posz + ",\"localisation.orientation.x\":" + orix + ",\"localisation.orientation.y\":" + oriy + ",\"localisation.orientation.z\":" + oriz + ",\"localisation.orientation.w\":" + oriw + "}"
     msg = json.loads(msg)
     print(msg)
@@ -39,6 +39,6 @@ if __name__ == '__main__':
 
     #message = String()
 
-    rate = rospy.Rate(2)
+    rate = rospy.Rate(1)
     while not rospy.is_shutdown():
         rate.sleep()
