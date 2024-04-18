@@ -2,7 +2,7 @@
 
 import rospy
 from geometry_msgs.msg import PoseWithCovarianceStamped, Twist
-from nav_msgs.msg import Path
+from nav_msgs.msg import Path, OccupancyGrid
 from pymongo import MongoClient
 import json
 import numpy as np
@@ -11,8 +11,9 @@ import tf
 
 total_points = 0
 path_list = []
+robot_x, robot_y = (0,0)
 
-def path_callback(msg):
+def callback_path(msg):
     global total_points, route, path_list
     path_points = msg.poses
     if total_points==0:
@@ -26,7 +27,7 @@ def path_callback(msg):
     (trans, rot) = listener.lookupTransform('/map', '/odom_combined', rospy.Time(0))
 
     path_points = [(k.pose.position.x + trans[0] , k.pose.position.y + trans[1]) for k in path_points]
-    collection.update_one({"robotName":"robot2"}, { "$set":{"Task.taskPercentage": percentage, "Task.pathPoints":path_points}})
+    collection.update_one({"robotName":"robot1"}, { "$set":{"Task.taskPercentage": percentage, "Task.pathPoints":path_points}})
 
 
 def callback_odom(msg):
@@ -40,7 +41,10 @@ def callback_odom(msg):
     msg = "{\"Pose.Position.x\":" + posx + ",\"Pose.Position.y\":" + posy + ",\"Pose.Position.z\":" + posz + ",\"Pose.Orientation.x\":" + orix + ",\"Pose.Orientation.y\":" + oriy + ",\"Pose.Orientation.z\":" + oriz + ",\"Pose.Orientation.w\":" + oriw + "}"
     msg = json.loads(msg)
     print(msg)
-    collection.update_one({"robotName":"robot2"}, { "$set":msg})
+    collection.update_one({"robotName":"robot1"}, { "$set":msg})
+
+    global robot_x, robot_y
+    robot_x, robot_y = float(posx), float(posy)
 
 def callback_vel(msg):
     v_lin = str(round(msg.linear.x, 2))
@@ -48,7 +52,26 @@ def callback_vel(msg):
     msg = "{\"robotVelocity.linearVelocity\":"+ v_lin + ",\"robotVelocity.angularVelocity\":"+ v_ang + "}"
     msg = json.loads(msg)
     #print(msg)
-    collection.update_one({"robotName":"robot2"}, { "$set":msg})
+    collection.update_one({"robotName":"robot1"}, { "$set":msg})
+
+def callback_costmap(msg):
+    global robot_x, robot_y
+    length = int(np.sqrt(len(msg.data)))
+    msg.data = np.array(msg.data).reshape((length,length))
+    #print(msg.data.shape)
+    costmap_border = 15
+    divider = length/costmap_border
+    hundreds = []
+    unknowns = []
+    for i in range(0, msg.data.shape[0]):
+        for j in range(0, msg.data.shape[1]):
+            if msg.data[i][j] == 100:
+                hundreds.append((robot_x + (round((((j/divider)-(costmap_border/2))),3)),(robot_y + round(((i/divider)-(costmap_border/2)),3))))
+                #print(hundreds)
+            elif msg.data[i][j] == -1:
+                unknowns.append((i,j))
+    print((hundreds))
+    collection.update_one({"robotName":"robot1"}, { "$set":{"createdCostmap":hundreds}})
     
 def callback(msg):
     msg = str(msg)[6:]
@@ -67,9 +90,10 @@ if __name__ == '__main__':
     collection = db.robots
     
     rospy.init_node('db_test')
-    subs = rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, callback_odom)
-    sub_vel = rospy.Subscriber("/cmd_vel", Twist, callback_vel)
-    rospy.Subscriber('/move_base/DWAPlannerROS/global_plan', Path, path_callback)
+    rospy.Subscriber("/amcl_pose", PoseWithCovarianceStamped, callback_odom)
+    rospy.Subscriber("/cmd_vel", Twist, callback_vel)
+    rospy.Subscriber('/move_base/DWAPlannerROS/global_plan', Path, callback_path)
+    rospy.Subscriber("/move_base/local_costmap/costmap", OccupancyGrid, callback_costmap)
 
     rospy.spin()
 
