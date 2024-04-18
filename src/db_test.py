@@ -13,6 +13,8 @@ total_points = 0
 path_list = []
 robot_x, robot_y = (0,0)
 
+robot_Name = "robot1"
+
 def callback_path(msg):
     global total_points, route, path_list
     path_points = msg.poses
@@ -27,7 +29,7 @@ def callback_path(msg):
     (trans, rot) = listener.lookupTransform('/map', '/odom_combined', rospy.Time(0))
 
     path_points = [(k.pose.position.x + trans[0] , k.pose.position.y + trans[1]) for k in path_points]
-    collection.update_one({"robotName":"robot1"}, { "$set":{"Task.taskPercentage": percentage, "Task.pathPoints":path_points}})
+    collection.update_one({"robotName":robot_Name}, { "$set":{"Task.taskPercentage": percentage, "Task.pathPoints":path_points}})
 
 
 def callback_odom(msg):
@@ -41,7 +43,7 @@ def callback_odom(msg):
     msg = "{\"Pose.Position.x\":" + posx + ",\"Pose.Position.y\":" + posy + ",\"Pose.Position.z\":" + posz + ",\"Pose.Orientation.x\":" + orix + ",\"Pose.Orientation.y\":" + oriy + ",\"Pose.Orientation.z\":" + oriz + ",\"Pose.Orientation.w\":" + oriw + "}"
     msg = json.loads(msg)
     print(msg)
-    collection.update_one({"robotName":"robot1"}, { "$set":msg})
+    collection.update_one({"robotName":robot_Name}, { "$set":msg})
 
     global robot_x, robot_y
     robot_x, robot_y = float(posx), float(posy)
@@ -52,7 +54,7 @@ def callback_vel(msg):
     msg = "{\"robotVelocity.linearVelocity\":"+ v_lin + ",\"robotVelocity.angularVelocity\":"+ v_ang + "}"
     msg = json.loads(msg)
     #print(msg)
-    collection.update_one({"robotName":"robot1"}, { "$set":msg})
+    collection.update_one({"robotName":robot_Name}, { "$set":msg})
 
 def callback_costmap(msg):
     global robot_x, robot_y
@@ -71,7 +73,7 @@ def callback_costmap(msg):
             elif msg.data[i][j] == -1:
                 unknowns.append((i,j))
     print((hundreds))
-    collection.update_one({"robotName":"robot1"}, { "$set":{"createdCostmap":hundreds}})
+    collection.update_one({"robotName":robot_Name}, { "$set":{"createdCostmap":hundreds}})
     
 def callback(msg):
     msg = str(msg)[6:]
